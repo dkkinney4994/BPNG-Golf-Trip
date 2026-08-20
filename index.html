@@ -293,6 +293,39 @@ body{
   margin:16px 0;
 }
 
+.year-filter-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:24px;
+}
+.year-filter-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-dimmer);
+}
+.year-filter{
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:14px;
+  color:var(--ink);
+  background:var(--board-2);
+  border:1px solid var(--board-3);
+  border-radius:6px;
+  padding:7px 12px;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239FB5A6' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  padding-right:30px;
+}
+.year-filter:hover{border-color:var(--fairway-light);}
+.year-filter:focus{outline:none;border-color:var(--brass);}
+
 /* ---------- History view ---------- */
 .section-label{
   font-family:'IBM Plex Mono',monospace;
@@ -395,6 +428,13 @@ body{
   width:100%;
   border-collapse:collapse;
 }
+.table-scroll{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.table-scroll .hist-table{
+  min-width:640px;
+}
 .wins-table th, .hist-table th{
   font-family:'IBM Plex Mono',monospace;
   font-size:10.5px;
@@ -456,6 +496,7 @@ footer{
 
   let mode = "net";   // 'net' | 'gross'
   let view = "board"; // 'board' | 'history'
+  let selectedHistoryYear = null; // null = not yet set; 'all' or a specific year string
   let rows = [];
   let historyRows = [];
   let historyError = null;
@@ -645,9 +686,11 @@ footer{
       year: (row['Year']||'').toString().trim(),
       location: (row['Trip Location']||'').trim(),
       player: (row['Player']||'').trim(),
+      r1n:num(row['R1 Net']), r2n:num(row['R2 Net']), r3n:num(row['R3 Net']), r4n:num(row['R4 Net']),
       roundsPlayed: num(row['Rounds Played']),
       totalNet: num(row['Total Net']),
       netRank: num(row['Net Rank']),
+      r1g:num(row['R1 Gross']), r2g:num(row['R2 Gross']), r3g:num(row['R3 Gross']), r4g:num(row['R4 Gross']),
       totalGross: num(row['Total Gross']),
       grossRank: num(row['Gross Rank']),
     })).filter(r => r.player!=='' && !r.player.toLowerCase().startsWith('e.g.'));
@@ -718,7 +761,21 @@ footer{
     const years = [...new Set([...trophyRows.map(r=>r.year), ...historyRows.map(r=>r.year)])]
       .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
 
-    const hofCards = years.map(y=>{
+    if(selectedHistoryYear === null){
+      selectedHistoryYear = years[0] || 'all'; // default to most recent year
+    }
+    const activeYears = selectedHistoryYear === 'all' ? years : years.filter(y=>y===selectedHistoryYear);
+
+    const yearOptions = [
+      `<option value="all"${selectedHistoryYear==='all'?' selected':''}>All Years</option>`,
+      ...years.map(y=>`<option value="${escapeHtml(y)}"${selectedHistoryYear===y?' selected':''}>${escapeHtml(y)}</option>`)
+    ].join('');
+    const yearFilterHtml = `
+      <select class="year-filter" id="year-filter" aria-label="Filter by year">
+        ${yearOptions}
+      </select>`;
+
+    const hofCards = activeYears.map(y=>{
       const troph = trophyRows.find(r=>r.year===y);
       const yearHistRows = historyRows.filter(r=>r.year===y);
       const loc = troph?.location || yearHistRows.find(r=>r.location)?.location || '';
@@ -767,12 +824,17 @@ footer{
         <td>${p.grossTitles ? `<span class="medal">${p.grossTitles}</span>` : '0'}</td>
       </tr>`).join('');
 
-    const sortedHistory = [...historyRows].sort((a,b)=>{
-      if(a.year!==b.year) return b.year.localeCompare(a.year,undefined,{numeric:true});
-      const ar = a.netRank===null ? 999 : a.netRank, br = b.netRank===null ? 999 : b.netRank;
-      return ar-br;
-    });
-    const histRows = sortedHistory.map(r=>`
+    const sortedHistory = historyRows
+      .filter(r => selectedHistoryYear === 'all' || r.year === selectedHistoryYear)
+      .sort((a,b)=>{
+        if(a.year!==b.year) return b.year.localeCompare(a.year,undefined,{numeric:true});
+        const ar = a.netRank===null ? 999 : a.netRank, br = b.netRank===null ? 999 : b.netRank;
+        return ar-br;
+      });
+
+    const roundCell = v => v===null||v===undefined ? '–' : v;
+
+    const histRows = sortedHistory.map(r => selectedHistoryYear === 'all' ? `
       <tr>
         <td>${escapeHtml(r.year)}</td>
         <td>${escapeHtml(r.location)}</td>
@@ -781,27 +843,56 @@ footer{
         <td>${r.netRank ?? '–'}</td>
         <td>${r.totalGross ?? '–'}</td>
         <td>${r.grossRank ?? '–'}</td>
+      </tr>` : `
+      <tr>
+        <td>${escapeHtml(r.player)}</td>
+        <td>${roundCell(r.r1n)}</td><td>${roundCell(r.r2n)}</td><td>${roundCell(r.r3n)}</td><td>${roundCell(r.r4n)}</td>
+        <td>${r.totalNet ?? '–'}</td><td>${r.netRank ?? '–'}</td>
+        <td>${roundCell(r.r1g)}</td><td>${roundCell(r.r2g)}</td><td>${roundCell(r.r3g)}</td><td>${roundCell(r.r4g)}</td>
+        <td>${r.totalGross ?? '–'}</td><td>${r.grossRank ?? '–'}</td>
       </tr>`).join('');
 
+    const histTableHead = selectedHistoryYear === 'all'
+      ? `<tr><th>Year</th><th>Location</th><th>Player</th><th>Net</th><th>Net Rk</th><th>Gross</th><th>Gross Rk</th></tr>`
+      : `<tr><th>Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Net</th><th>Net Rk</th>
+           <th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Gross</th><th>Gross Rk</th></tr>`;
+
+    const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
+
     renderShell(`
+      <div class="year-filter-row">
+        <span class="year-filter-label">Viewing</span>
+        ${yearFilterHtml}
+      </div>
+
       <div class="section-label">Hall of Fame</div>
       ${trophyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin:0 2px 12px;">Trophies tab didn't load — showing individual stats only. ${trophyError}</p>` : ''}
       <div class="hof-scroll">${hofCards}</div>
 
       ${historyRows.length ? `
       <div class="section-label">All-Time Wins</div>
-      <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-dimmer);margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years.</p>
+      <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-dimmer);margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years. Always shows every year, regardless of the filter above.</p>
       <table class="wins-table">
         <thead><tr><th>Player</th><th>Trips</th><th>Low Net</th><th>Low Gross</th></tr></thead>
         <tbody>${winsRows}</tbody>
       </table>
 
-      <div class="section-label">Full History</div>
-      <table class="hist-table">
-        <thead><tr><th>Year</th><th>Location</th><th>Player</th><th>Net</th><th>Net Rk</th><th>Gross</th><th>Gross Rk</th></tr></thead>
-        <tbody>${histRows}</tbody>
-      </table>` : historyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
+      <div class="section-label">${fullHistLabel}</div>
+      <div class="table-scroll">
+        <table class="hist-table">
+          <thead>${histTableHead}</thead>
+          <tbody>${histRows || `<tr><td colspan="13" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
+        </table>
+      </div>` : historyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
     `);
+
+    const yearFilterEl = document.getElementById('year-filter');
+    if(yearFilterEl){
+      yearFilterEl.onchange = (e) => {
+        selectedHistoryYear = e.target.value;
+        renderHistory();
+      };
+    }
   }
 
   /* ---------------- Data loading ---------------- */
