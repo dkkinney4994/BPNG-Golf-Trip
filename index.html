@@ -52,13 +52,18 @@ const CONFIG = {
   --ink:#F1EDE0;
   --ink-dim:#9FB5A6;
   --ink-dimmer:#6C8874;
-  --radius:10px;
+  --radius:16px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,.22);
+  --shadow-md:0 8px 28px rgba(0,0,0,.32);
 }
 
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
-  background:var(--board);
+  background:
+    radial-gradient(1100px 520px at 50% -8%, rgba(46,125,70,.35) 0%, transparent 60%),
+    linear-gradient(180deg, var(--board) 0%, #081E15 100%);
+  background-attachment:fixed;
   color:var(--ink);
   font-family:'Inter',sans-serif;
   -webkit-font-smoothing:antialiased;
@@ -68,7 +73,8 @@ body{
 /* ---------- Hero / masthead ---------- */
 .masthead{
   padding:48px 4px 28px;
-  border-bottom:3px solid var(--fairway);
+  border-bottom:3px solid transparent;
+  border-image:linear-gradient(90deg, var(--fairway) 0%, var(--fairway) 65%, var(--azalea) 100%) 1;
   position:relative;
 }
 .eyebrow{
@@ -97,25 +103,32 @@ body{
 
 .view-nav{
   display:inline-flex;
-  gap:6px;
+  gap:3px;
   margin-top:22px;
+  border:1px solid var(--board-3);
+  border-radius:999px;
+  padding:3px;
+  background:rgba(0,0,0,.15);
+  backdrop-filter:blur(6px);
 }
 .view-nav button{
-  font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:700;
-  font-size:19px;
-  letter-spacing:.02em;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:.01em;
   border:none;
   background:transparent;
   color:var(--ink-dimmer);
-  padding:8px 4px;
+  padding:8px 18px;
+  border-radius:999px;
   cursor:pointer;
-  border-bottom:2px solid transparent;
+  transition:background .18s ease,color .18s ease;
 }
 .view-nav button.active{
-  color:var(--ink);
-  border-bottom-color:var(--fairway-light);
+  color:#fff;
+  background:var(--azalea);
 }
-.view-nav .sep{color:var(--board-3);align-self:center;font-size:14px;}
+.view-nav .sep{display:none;}
 
 .controls{
   display:flex;
@@ -129,7 +142,8 @@ body{
   border:1px solid var(--board-3);
   border-radius:999px;
   padding:3px;
-  background:var(--board-2);
+  background:rgba(0,0,0,.15);
+  backdrop-filter:blur(6px);
 }
 .toggle button{
   font-family:'IBM Plex Mono',monospace;
@@ -142,10 +156,10 @@ body{
   padding:8px 18px;
   border-radius:999px;
   cursor:pointer;
-  transition:background .15s ease,color .15s ease;
+  transition:background .18s ease,color .18s ease;
 }
 .toggle button.active{
-  background:var(--fairway);
+  background:var(--azalea);
   color:#fff;
 }
 .sync-status{
@@ -160,19 +174,21 @@ body{
 .sync-dot{
   width:7px;height:7px;border-radius:50%;
   background:var(--ink-dimmer);
+  transition:background .2s ease;
 }
-.sync-dot.live{background:var(--fairway-light);box-shadow:0 0 0 3px rgba(76,122,82,.25);}
+.sync-dot.live{background:var(--fairway-light);box-shadow:0 0 0 4px rgba(87,165,110,.2);}
 .refresh-btn{
   font-family:'IBM Plex Mono',monospace;
   font-size:12px;
   background:none;
   border:1px solid var(--board-3);
   color:var(--ink-dim);
-  padding:6px 12px;
-  border-radius:6px;
+  padding:6px 14px;
+  border-radius:999px;
   cursor:pointer;
+  transition:border-color .18s ease,color .18s ease;
 }
-.refresh-btn:hover{border-color:var(--fairway-light);color:var(--ink);}
+.refresh-btn:hover{border-color:var(--azalea);color:var(--ink);}
 
 /* ---------- Board (leaderboard) ---------- */
 .board{margin-top:22px;}
@@ -195,28 +211,34 @@ body{
   display:grid;
   grid-template-columns:52px 1fr repeat(4,56px) 76px;
   align-items:center;
-  background:var(--board-2);
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)), var(--board-2);
+  border:1px solid rgba(255,255,255,.05);
   border-left:4px solid transparent;
-  border-radius:8px;
+  border-radius:14px;
   padding:12px 10px;
-  margin-bottom:6px;
+  margin-bottom:8px;
   position:relative;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow .18s ease,transform .18s ease;
 }
+.row:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
 .row.rank-1{border-left-color:var(--brass);}
 .row.rank-2{border-left-color:var(--silver);}
 .row.rank-3{border-left-color:var(--bronze);}
 
 .rank{
-  font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:700;
-  font-size:30px;
+  font-family:'Inter',sans-serif;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  font-size:22px;
   text-align:center;
   color:var(--ink-dim);
-  letter-spacing:.02em;
+  letter-spacing:-.01em;
 }
 .row.rank-1 .rank{color:var(--brass);}
 .row.rank-2 .rank{color:var(--silver);}
 .row.rank-3 .rank{color:var(--bronze);}
-.rank sup{font-size:11px;margin-left:1px;}
+.rank sup{font-size:10px;margin-left:1px;font-weight:600;}
 
 .player-cell{padding-left:10px;min-width:0;}
 .player-name{
@@ -236,12 +258,16 @@ body{
 
 .hole-tile{
   font-family:'IBM Plex Mono',monospace;
-  font-size:14px;
+  font-size:13px;
   font-weight:600;
   text-align:center;
   color:var(--ink-dim);
+  background:rgba(255,255,255,.04);
+  border-radius:8px;
+  margin:0 3px;
+  padding:5px 0;
 }
-.hole-tile.dash{color:var(--ink-dimmer);font-weight:500;}
+.hole-tile.dash{color:var(--ink-dimmer);font-weight:500;background:transparent;}
 
 .total-cell{
   text-align:right;
@@ -258,7 +284,8 @@ body{
   background:var(--paper);
   color:#2b2a24;
   border-radius:var(--radius);
-  padding:26px 26px 22px;
+  padding:28px 28px 24px;
+  box-shadow:var(--shadow-md);
 }
 .state-card h2{
   font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:700;
@@ -313,17 +340,18 @@ body{
   color:var(--ink);
   background:var(--board-2);
   border:1px solid var(--board-3);
-  border-radius:6px;
-  padding:7px 12px;
+  border-radius:999px;
+  padding:8px 14px;
   cursor:pointer;
   appearance:none;
   -webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239FB5A6' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
   background-repeat:no-repeat;
-  background-position:right 12px center;
-  padding-right:30px;
+  background-position:right 14px center;
+  padding-right:32px;
+  transition:border-color .18s ease;
 }
-.year-filter:hover{border-color:var(--fairway-light);}
+.year-filter:hover{border-color:var(--azalea);}
 .year-filter:focus{outline:none;border-color:var(--brass);}
 
 /* ---------- History view ---------- */
@@ -346,12 +374,16 @@ body{
 }
 .hof-card{
   flex:0 0 auto;
-  width:196px;
-  background:var(--board-2);
+  width:200px;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)), var(--board-2);
+  border:1px solid rgba(255,255,255,.05);
   border-top:3px solid var(--brass);
-  border-radius:8px;
+  border-radius:14px;
   padding:16px 16px 14px;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow .18s ease,transform .18s ease;
 }
+.hof-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .hof-year{
   font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:700;
   font-size:30px;
@@ -373,8 +405,8 @@ body{
   font-size:9.5px;
   letter-spacing:.06em;
   text-transform:uppercase;
-  color:var(--fairway-light);
-  background:rgba(87,165,110,.18);
+  color:var(--azalea);
+  background:rgba(216,105,140,.16);
   border-radius:4px;
   padding:2px 6px;
   margin-bottom:12px;
@@ -410,7 +442,7 @@ body{
   font-size:10px;
   letter-spacing:.08em;
   text-transform:uppercase;
-  color:var(--fairway-light);
+  color:var(--azalea);
 }
 .hof-champ-name{
   font-weight:600;
@@ -428,12 +460,19 @@ body{
   width:100%;
   border-collapse:collapse;
 }
+.table-card{
+  background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)), var(--board-2);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:14px;
+  padding:6px 16px;
+  box-shadow:var(--shadow-sm);
+}
 .table-scroll{
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
 }
 .table-scroll .hist-table{
-  min-width:640px;
+  min-width:480px;
 }
 .wins-table th, .hist-table th{
   font-family:'IBM Plex Mono',monospace;
@@ -449,6 +488,9 @@ body{
   padding:10px;
   font-size:13.5px;
   border-bottom:1px solid var(--board-3);
+}
+.wins-table tbody tr:last-child td, .hist-table tbody tr:last-child td{
+  border-bottom:none;
 }
 .wins-table td:first-child, .hist-table td:nth-child(2), .hist-table td:nth-child(3){
   font-weight:600;
@@ -511,7 +553,7 @@ footer{
   }
 
   function renderShell(inner){
-    const showModeToggle = liveMode && view === 'board';
+    const showModeToggle = liveMode && (view === 'board' || (view === 'history' && selectedHistoryYear && selectedHistoryYear !== 'all'));
     app.innerHTML = `
       <div class="masthead">
         <p class="eyebrow">${view==='board' ? 'Leaderboard' : 'Trip History'}</p>
@@ -544,8 +586,8 @@ footer{
     document.getElementById('nav-board').onclick = () => { view='board'; renderBoard(); };
     document.getElementById('nav-history').onclick = () => { view='history'; goHistory(); };
     if(showModeToggle){
-      document.getElementById('btn-net').onclick = () => { mode='net'; renderBoard(); };
-      document.getElementById('btn-gross').onclick = () => { mode='gross'; renderBoard(); };
+      document.getElementById('btn-net').onclick = () => { mode='net'; view==='board' ? renderBoard() : renderHistory(); };
+      document.getElementById('btn-gross').onclick = () => { mode='gross'; view==='board' ? renderBoard() : renderHistory(); };
     }
     document.getElementById('btn-refresh').onclick = () => load(true);
   }
@@ -834,7 +876,8 @@ footer{
 
     const roundCell = v => v===null||v===undefined ? '–' : v;
 
-    const histRows = sortedHistory.map(r => selectedHistoryYear === 'all' ? `
+    const histRows = sortedHistory.map(r => {
+      if(selectedHistoryYear === 'all') return `
       <tr>
         <td>${escapeHtml(r.year)}</td>
         <td>${escapeHtml(r.location)}</td>
@@ -843,19 +886,23 @@ footer{
         <td>${r.netRank ?? '–'}</td>
         <td>${r.totalGross ?? '–'}</td>
         <td>${r.grossRank ?? '–'}</td>
-      </tr>` : `
+      </tr>`;
+      const rounds = mode==='net' ? [r.r1n,r.r2n,r.r3n,r.r4n] : [r.r1g,r.r2g,r.r3g,r.r4g];
+      const total = mode==='net' ? r.totalNet : r.totalGross;
+      const rank = mode==='net' ? r.netRank : r.grossRank;
+      return `
       <tr>
         <td>${escapeHtml(r.player)}</td>
-        <td>${roundCell(r.r1n)}</td><td>${roundCell(r.r2n)}</td><td>${roundCell(r.r3n)}</td><td>${roundCell(r.r4n)}</td>
-        <td>${r.totalNet ?? '–'}</td><td>${r.netRank ?? '–'}</td>
-        <td>${roundCell(r.r1g)}</td><td>${roundCell(r.r2g)}</td><td>${roundCell(r.r3g)}</td><td>${roundCell(r.r4g)}</td>
-        <td>${r.totalGross ?? '–'}</td><td>${r.grossRank ?? '–'}</td>
-      </tr>`).join('');
+        ${rounds.map(v=>`<td>${roundCell(v)}</td>`).join('')}
+        <td>${total ?? '–'}</td>
+        <td>${rank ?? '–'}</td>
+      </tr>`;
+    }).join('');
 
     const histTableHead = selectedHistoryYear === 'all'
       ? `<tr><th>Year</th><th>Location</th><th>Player</th><th>Net</th><th>Net Rk</th><th>Gross</th><th>Gross Rk</th></tr>`
-      : `<tr><th>Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Net</th><th>Net Rk</th>
-           <th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Gross</th><th>Gross Rk</th></tr>`;
+      : `<tr><th>Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>${mode==='net'?'Net':'Gross'}</th><th>Rk</th></tr>`;
+    const histColspan = selectedHistoryYear === 'all' ? 7 : 7;
 
     const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
 
@@ -872,16 +919,18 @@ footer{
       ${historyRows.length ? `
       <div class="section-label">All-Time Wins</div>
       <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-dimmer);margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years. Always shows every year, regardless of the filter above.</p>
-      <table class="wins-table">
-        <thead><tr><th>Player</th><th>Trips</th><th>Low Net</th><th>Low Gross</th></tr></thead>
-        <tbody>${winsRows}</tbody>
-      </table>
+      <div class="table-card">
+        <table class="wins-table">
+          <thead><tr><th>Player</th><th>Trips</th><th>Low Net</th><th>Low Gross</th></tr></thead>
+          <tbody>${winsRows}</tbody>
+        </table>
+      </div>
 
       <div class="section-label">${fullHistLabel}</div>
-      <div class="table-scroll">
+      <div class="table-card table-scroll">
         <table class="hist-table">
           <thead>${histTableHead}</thead>
-          <tbody>${histRows || `<tr><td colspan="13" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
+          <tbody>${histRows || `<tr><td colspan="${histColspan}" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
         </table>
       </div>` : historyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
     `);
