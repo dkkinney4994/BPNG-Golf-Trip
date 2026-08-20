@@ -492,6 +492,9 @@ body::after{
   width:100%;
   border-collapse:collapse;
 }
+.hist-table{
+  table-layout:fixed;
+}
 .table-card{
   background:rgba(255,255,255,.045);
   backdrop-filter:blur(18px);
@@ -514,7 +517,7 @@ body::after{
   letter-spacing:.08em;
   text-transform:uppercase;
   color:var(--ink-dimmer);
-  text-align:left;
+  text-align:right;
   padding:0 10px 8px;
   border-bottom:1px solid var(--board-3);
 }
@@ -522,17 +525,19 @@ body::after{
   padding:10px;
   font-size:13.5px;
   border-bottom:1px solid var(--board-3);
+  text-align:right;
+  font-family:'IBM Plex Mono',monospace;
 }
 .wins-table tbody tr:last-child td, .hist-table tbody tr:last-child td{
   border-bottom:none;
 }
-.wins-table td:first-child, .hist-table td:nth-child(2), .hist-table td:nth-child(3){
-  font-weight:600;
+.wins-table th:first-child, .wins-table td:first-child,
+.hist-table th.cell-text, .hist-table td.cell-text{
+  text-align:left;
+  font-family:'Inter',sans-serif;
 }
-.wins-table th:not(:first-child), .wins-table td:not(:first-child),
-.hist-table th:not(:nth-child(2)):not(:nth-child(3)), .hist-table td:not(:nth-child(2)):not(:nth-child(3)){
-  text-align:right;
-  font-family:'IBM Plex Mono',monospace;
+.wins-table td:first-child, .hist-table td.cell-text{
+  font-weight:600;
 }
 .medal{color:var(--brass);}
 
@@ -914,8 +919,8 @@ footer{
       if(selectedHistoryYear === 'all') return `
       <tr>
         <td>${escapeHtml(r.year)}</td>
-        <td>${escapeHtml(r.location)}</td>
-        <td>${escapeHtml(r.player)}</td>
+        <td class="cell-text">${escapeHtml(r.location)}</td>
+        <td class="cell-text">${escapeHtml(r.player)}</td>
         <td>${r.totalNet ?? '–'}</td>
         <td>${r.netRank ?? '–'}</td>
         <td>${r.totalGross ?? '–'}</td>
@@ -926,17 +931,20 @@ footer{
       const rank = mode==='net' ? r.netRank : r.grossRank;
       return `
       <tr>
-        <td>${escapeHtml(r.player)}</td>
+        <td class="cell-text">${escapeHtml(r.player)}</td>
+        <td>${rank ?? '–'}</td>
         ${rounds.map(v=>`<td>${roundCell(v)}</td>`).join('')}
         <td>${total ?? '–'}</td>
-        <td>${rank ?? '–'}</td>
       </tr>`;
     }).join('');
 
     const histTableHead = selectedHistoryYear === 'all'
-      ? `<tr><th>Year</th><th>Location</th><th>Player</th><th>Net</th><th>Net Rk</th><th>Gross</th><th>Gross Rk</th></tr>`
-      : `<tr><th>Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>${mode==='net'?'Net':'Gross'}</th><th>Rk</th></tr>`;
-    const histColspan = selectedHistoryYear === 'all' ? 7 : 7;
+      ? `<tr><th>Year</th><th class="cell-text">Location</th><th class="cell-text">Player</th><th>Net</th><th>Net Rk</th><th>Gross</th><th>Gross Rk</th></tr>`
+      : `<tr><th class="cell-text">Player</th><th>Rk</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>${mode==='net'?'Net':'Gross'}</th></tr>`;
+    const histColspan = 7;
+    const histColgroup = selectedHistoryYear === 'all'
+      ? `<colgroup><col style="width:9%"><col style="width:27%"><col style="width:22%"><col style="width:11%"><col style="width:9%"><col style="width:12%"><col style="width:10%"></colgroup>`
+      : `<colgroup><col style="width:34%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"></colgroup>`;
 
     const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
 
@@ -963,6 +971,7 @@ footer{
       <div class="section-label">${fullHistLabel}</div>
       <div class="table-card table-scroll">
         <table class="hist-table">
+          ${histColgroup}
           <thead>${histTableHead}</thead>
           <tbody>${histRows || `<tr><td colspan="${histColspan}" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
         </table>
