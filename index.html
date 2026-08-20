@@ -348,18 +348,24 @@ body::after{
   margin:16px 0;
 }
 
-.year-filter-row{
+.scores-header{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:32px 2px 12px;
+}
+.scores-controls{
   display:flex;
   align-items:center;
   gap:10px;
-  margin-top:24px;
 }
-.year-filter-label{
+.helper-text{
   font-family:'IBM Plex Mono',monospace;
   font-size:11px;
-  letter-spacing:.1em;
-  text-transform:uppercase;
-  color:var(--ink-dimmer);
+  color:var(--ink-dim);
+  line-height:1.6;
 }
 .year-filter{
   font-family:'Inter',sans-serif;
@@ -592,7 +598,7 @@ footer{
   }
 
   function renderShell(inner){
-    const showModeToggle = liveMode && (view === 'board' || (view === 'history' && selectedHistoryYear && selectedHistoryYear !== 'all'));
+    const showModeToggle = liveMode && view === 'board';
     app.innerHTML = `
       <div class="masthead">
         <p class="eyebrow">${view==='board' ? 'Leaderboard' : 'Trip History'}</p>
@@ -625,8 +631,8 @@ footer{
     document.getElementById('nav-board').onclick = () => { view='board'; renderBoard(); };
     document.getElementById('nav-history').onclick = () => { view='history'; goHistory(); };
     if(showModeToggle){
-      document.getElementById('btn-net').onclick = () => { mode='net'; view==='board' ? renderBoard() : renderHistory(); };
-      document.getElementById('btn-gross').onclick = () => { mode='gross'; view==='board' ? renderBoard() : renderHistory(); };
+      document.getElementById('btn-net').onclick = () => { mode='net'; renderBoard(); };
+      document.getElementById('btn-gross').onclick = () => { mode='gross'; renderBoard(); };
     }
     document.getElementById('btn-refresh').onclick = () => load(true);
   }
@@ -845,7 +851,7 @@ footer{
     if(selectedHistoryYear === null){
       selectedHistoryYear = years[0] || 'all'; // default to most recent year
     }
-    const activeYears = selectedHistoryYear === 'all' ? years : years.filter(y=>y===selectedHistoryYear);
+    const activeYears = years; // Hall of Fame always shows every year
 
     const yearOptions = [
       `<option value="all"${selectedHistoryYear==='all'?' selected':''}>All Years</option>`,
@@ -947,20 +953,16 @@ footer{
       : `<colgroup><col style="width:34%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"></colgroup>`;
 
     const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
+    const showHistToggle = selectedHistoryYear !== 'all';
 
     renderShell(`
-      <div class="year-filter-row">
-        <span class="year-filter-label">Viewing</span>
-        ${yearFilterHtml}
-      </div>
-
       <div class="section-label">Hall of Fame</div>
-      ${trophyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin:0 2px 12px;">Trophies tab didn't load — showing individual stats only. ${trophyError}</p>` : ''}
+      ${trophyError ? `<p class="helper-text" style="margin:0 2px 12px;">Trophies tab didn't load — showing individual stats only. ${trophyError}</p>` : ''}
       <div class="hof-scroll">${hofCards}</div>
 
       ${historyRows.length ? `
       <div class="section-label">All-Time Wins</div>
-      <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-dimmer);margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years. Always shows every year, regardless of the filter above.</p>
+      <p class="helper-text" style="margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years. Always shows every year.</p>
       <div class="table-card">
         <table class="wins-table">
           <thead><tr><th>Player</th><th>Trips</th><th>Low Net</th><th>Low Gross</th></tr></thead>
@@ -968,14 +970,24 @@ footer{
         </table>
       </div>
 
-      <div class="section-label">${fullHistLabel}</div>
+      <div class="scores-header">
+        <div class="section-label" style="margin:0;">${fullHistLabel}</div>
+        <div class="scores-controls">
+          ${showHistToggle ? `
+          <div class="toggle">
+            <button id="hist-btn-net" class="${mode==='net'?'active':''}">Net</button>
+            <button id="hist-btn-gross" class="${mode==='gross'?'active':''}">Gross</button>
+          </div>` : ''}
+          ${yearFilterHtml}
+        </div>
+      </div>
       <div class="table-card table-scroll">
         <table class="hist-table">
           ${histColgroup}
           <thead>${histTableHead}</thead>
           <tbody>${histRows || `<tr><td colspan="${histColspan}" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
         </table>
-      </div>` : historyError ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dimmer);margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
+      </div>` : historyError ? `<p class="helper-text" style="margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
     `);
 
     const yearFilterEl = document.getElementById('year-filter');
@@ -985,6 +997,10 @@ footer{
         renderHistory();
       };
     }
+    const histNetBtn = document.getElementById('hist-btn-net');
+    const histGrossBtn = document.getElementById('hist-btn-gross');
+    if(histNetBtn){ histNetBtn.onclick = () => { mode='net'; renderHistory(); }; }
+    if(histGrossBtn){ histGrossBtn.onclick = () => { mode='gross'; renderHistory(); }; }
   }
 
   /* ---------------- Data loading ---------------- */
