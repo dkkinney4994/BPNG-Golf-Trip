@@ -31,6 +31,7 @@ const CONFIG = {
   leaderboardTab: "Leaderboard",
   historyTab: "History",
   trophiesTab: "Trophies",
+  highlightsTab: "Highlights",
   refreshSeconds: 60
 };
 </script>
@@ -323,6 +324,61 @@ body{
 }
 
 /* ---------- History view ---------- */
+.sub-nav{
+  display:flex;
+  gap:8px;
+  margin:26px 2px 8px;
+}
+.sub-nav button{
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:13px;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--ink-dim);
+  padding:8px 16px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.sub-nav button.active{
+  color:#1A1210;
+  background:var(--gold);
+  border-color:var(--gold);
+}
+.records-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.record-box{
+  background:linear-gradient(160deg, var(--card-2) 0%, var(--card) 100%);
+  border:1px solid var(--line);
+  border-top:2px solid var(--gold);
+  border-radius:var(--radius);
+  padding:16px;
+}
+.record-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--ink-dimmer);
+  margin-bottom:6px;
+}
+.record-value{
+  font-family:'Oswald',sans-serif;
+  font-weight:700;
+  font-size:32px;
+  color:var(--gold-bright);
+  line-height:1;
+}
+.record-who{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  color:var(--ink-dim);
+  margin-top:6px;
+}
 .section-label{
   font-family:'IBM Plex Mono',monospace;
   font-size:11px;
@@ -496,6 +552,53 @@ body{
   border-radius:var(--radius);
   padding:4px 16px;
 }
+.highlights-card{
+  padding:6px 16px;
+}
+.highlight-item{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:12px 2px;
+  border-bottom:1px solid var(--line);
+}
+.highlight-item:last-child{border-bottom:none;}
+.highlight-badge{
+  flex:0 0 auto;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  padding:4px 9px;
+  border-radius:999px;
+  white-space:nowrap;
+  margin-top:1px;
+}
+.highlight-badge.ace{
+  background:var(--gold-dim);
+  color:var(--gold-bright);
+  border:1px solid rgba(212,175,55,.4);
+}
+.highlight-badge.albatross{
+  background:rgba(163,46,66,.16);
+  color:var(--maroon-light);
+  border:1px solid rgba(163,46,66,.4);
+}
+.highlight-body{min-width:0;}
+.highlight-main{
+  font-family:'Inter',sans-serif;
+  font-size:13.5px;
+  color:var(--ink);
+}
+.highlight-main strong{font-weight:700;}
+.highlight-notes{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11.5px;
+  color:var(--ink-dim);
+  margin-top:3px;
+  font-style:italic;
+}
 .table-scroll{
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
@@ -572,11 +675,14 @@ footer{
   let mode = "net";   // 'net' | 'gross'
   let view = "board"; // 'board' | 'history'
   let selectedHistoryYear = null; // null = not yet set; 'all' or a specific year string
+  let historySubView = 'achievements'; // 'achievements' | 'scores'
   let rows = [];
   let historyRows = [];
   let historyError = null;
   let trophyRows = [];
   let trophyError = null;
+  let highlightRows = [];
+  let highlightError = null;
   let historyLoaded = false;
   let lastSync = null;
   let liveMode = false;
@@ -782,6 +888,19 @@ footer{
     })).filter(r => r.year!=='' && !r.champion.toLowerCase().startsWith('e.g.'));
   }
 
+  function parseHighlightRows(csvText){
+    const parsed = Papa.parse(csvText.trim(), {header:true, skipEmptyLines:true});
+    return parsed.data.map(row => ({
+      year: (row['Year']||'').toString().trim(),
+      location: (row['Trip Location']||'').trim(),
+      player: (row['Player']||'').trim(),
+      hole: (row['Hole']||'').toString().trim(),
+      par: (row['Par']||'').toString().trim(),
+      achievement: (row['Achievement']||'').trim(),
+      notes: (row['Notes']||'').trim(),
+    })).filter(r => r.year!=='' && r.player!=='' && !r.player.toLowerCase().startsWith('e.g.'));
+  }
+
   function fetchTab(tab){
     return fetch(csvUrl(tab)).then(res=>{
       if(!res.ok) throw new Error("HTTP "+res.status);
@@ -796,13 +915,16 @@ footer{
     if(historyLoaded){ renderHistory(); return; }
     renderShell(`<div class="state-card"><h2>Loading history…</h2><p>Pulling past trips from the Sheet.</p></div>`);
 
-    Promise.allSettled([fetchTab(CONFIG.trophiesTab), fetchTab(CONFIG.historyTab)])
-      .then(([troph, hist])=>{
+    Promise.allSettled([fetchTab(CONFIG.trophiesTab), fetchTab(CONFIG.historyTab), fetchTab(CONFIG.highlightsTab)])
+      .then(([troph, hist, hl])=>{
         if(troph.status==='fulfilled'){ trophyRows = parseTrophyRows(troph.value); trophyError = null; }
         else { trophyRows = []; trophyError = troph.reason.message || "Couldn't load Trophies."; }
 
         if(hist.status==='fulfilled'){ historyRows = parseHistoryRows(hist.value); historyError = null; }
         else { historyRows = []; historyError = hist.reason.message || "Couldn't load History."; }
+
+        if(hl.status==='fulfilled'){ highlightRows = parseHighlightRows(hl.value); highlightError = null; }
+        else { highlightRows = []; highlightError = hl.reason.message || "Couldn't load Highlights."; }
 
         historyLoaded = true;
         renderHistory();
@@ -823,7 +945,7 @@ footer{
       `);
       return;
     }
-    if(trophyRows.length === 0 && historyRows.length === 0){
+    if(trophyRows.length === 0 && historyRows.length === 0 && highlightRows.length === 0){
       renderShell(`
         <div class="state-card">
           <h2>No trips logged yet</h2>
@@ -899,6 +1021,39 @@ footer{
         <td>${p.grossTitles ? `<span class="medal">${p.grossTitles}</span>` : '0'}</td>
       </tr>`).join('');
 
+    // All-time best single-trip Net and Gross totals, across every year on record
+    let bestNet = null, bestGross = null;
+    historyRows.forEach(r=>{
+      if(r.totalNet !== null){
+        if(bestNet===null || r.totalNet < bestNet.value) bestNet = {value:r.totalNet, entries:[r]};
+        else if(r.totalNet === bestNet.value) bestNet.entries.push(r);
+      }
+      if(r.totalGross !== null){
+        if(bestGross===null || r.totalGross < bestGross.value) bestGross = {value:r.totalGross, entries:[r]};
+        else if(r.totalGross === bestGross.value) bestGross.entries.push(r);
+      }
+    });
+    const recordBox = (label, rec) => {
+      if(!rec) return `
+        <div class="record-box">
+          <div class="record-label">${label}</div>
+          <div class="record-value" style="color:var(--ink-dimmer);font-size:16px;">Not enough data yet</div>
+        </div>`;
+      const names = rec.entries.map(e=>escapeHtml(e.player)).join(' &amp; ');
+      const years = [...new Set(rec.entries.map(e=>e.year))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true})).join(', ');
+      return `
+        <div class="record-box">
+          <div class="record-label">${label}</div>
+          <div class="record-value">${rec.value}</div>
+          <div class="record-who">${names} · ${escapeHtml(years)}</div>
+        </div>`;
+    };
+    const recordsHtml = (bestNet || bestGross) ? `
+      <div class="records-grid">
+        ${recordBox('Best Net, All-Time', bestNet)}
+        ${recordBox('Best Gross, All-Time', bestGross)}
+      </div>` : '';
+
     const sortedHistory = historyRows
       .filter(r => selectedHistoryYear === 'all' || r.year === selectedHistoryYear)
       .sort((a,b)=>{
@@ -943,21 +1098,48 @@ footer{
     const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
     const showHistToggle = selectedHistoryYear !== 'all';
 
+    const sortedHighlights = [...highlightRows].sort((a,b)=>b.year.localeCompare(a.year,undefined,{numeric:true}));
+    const highlightItems = sortedHighlights.map(h=>{
+      const badgeClass = h.achievement.toLowerCase().includes('hole-in-one') || h.achievement.toLowerCase().includes('ace') ? 'ace' : 'albatross';
+      return `
+      <div class="highlight-item">
+        <span class="highlight-badge ${badgeClass}">${escapeHtml(h.achievement || '—')}</span>
+        <div class="highlight-body">
+          <div class="highlight-main"><strong>${escapeHtml(h.player)}</strong> — Hole ${escapeHtml(h.hole)}${h.par ? ` (Par ${escapeHtml(h.par)})` : ''} · ${escapeHtml(h.year)}${h.location ? `, ${escapeHtml(h.location)}` : ''}</div>
+          ${h.notes ? `<div class="highlight-notes">${escapeHtml(h.notes)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
     renderShell(`
+      <div class="sub-nav">
+        <button id="sub-achievements" class="${historySubView==='achievements'?'active':''}">Achievements</button>
+        <button id="sub-scores" class="${historySubView==='scores'?'active':''}">Scores</button>
+      </div>
+
+      ${historySubView === 'achievements' ? `
       <div class="section-label">Hall of Fame</div>
       ${trophyError ? `<p class="helper-text" style="margin:0 2px 12px;">Trophies tab didn't load — showing individual stats only. ${trophyError}</p>` : ''}
       <div class="hof-scroll">${hofCards}</div>
 
+      ${highlightItems ? `
+      <div class="section-label">Top Shots</div>
+      <div class="table-card highlights-card">${highlightItems}</div>` : highlightError ? `<p class="helper-text" style="margin:-6px 2px 0;">Highlights tab didn't load. ${highlightError}</p>` : ''}
+
+      ${recordsHtml ? `
+      <div class="section-label">Best of the Trip</div>
+      ${recordsHtml}` : ''}
+
       ${historyRows.length ? `
       <div class="section-label">All-Time Wins</div>
-      <p class="helper-text" style="margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years. Always shows every year.</p>
+      <p class="helper-text" style="margin:-6px 2px 12px;">Best individual stroke totals by year — not necessarily who took home the trophy in match-play years.</p>
       <div class="table-card">
         <table class="wins-table">
           <thead><tr><th>Player</th><th>Trips</th><th>Low Net</th><th>Low Gross</th></tr></thead>
           <tbody>${winsRows}</tbody>
         </table>
-      </div>
-
+      </div>` : historyError ? `<p class="helper-text" style="margin-top:24px;">History tab didn't load. ${historyError}</p>` : ''}
+      ` : `
       <div class="scores-header">
         <div class="section-label" style="margin:0;">${fullHistLabel}</div>
         <div class="scores-controls">
@@ -975,8 +1157,13 @@ footer{
           <thead>${histTableHead}</thead>
           <tbody>${histRows || `<tr><td colspan="${histColspan}" style="text-align:center;color:var(--ink-dimmer);padding:16px;">No rounds on record for this year.</td></tr>`}</tbody>
         </table>
-      </div>` : historyError ? `<p class="helper-text" style="margin-top:24px;">History tab didn't load — showing trophies only. ${historyError}</p>` : ''}
+      </div>
+      ${historyError ? `<p class="helper-text" style="margin-top:16px;">History tab didn't load. ${historyError}</p>` : ''}
+      `}
     `);
+
+    document.getElementById('sub-achievements').onclick = () => { historySubView='achievements'; renderHistory(); };
+    document.getElementById('sub-scores').onclick = () => { historySubView='scores'; renderHistory(); };
 
     const yearFilterEl = document.getElementById('year-filter');
     if(yearFilterEl){
