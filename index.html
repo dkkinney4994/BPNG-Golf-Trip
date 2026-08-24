@@ -911,11 +911,8 @@ footer{
     });
   }
 
-  function goHistory(){
-    if(historyLoaded){ renderHistory(); return; }
-    renderShell(`<div class="state-card"><h2>Loading history…</h2><p>Pulling past trips from the Sheet.</p></div>`);
-
-    Promise.allSettled([fetchTab(CONFIG.trophiesTab), fetchTab(CONFIG.historyTab), fetchTab(CONFIG.highlightsTab)])
+  function loadHistoryTabs(){
+    return Promise.allSettled([fetchTab(CONFIG.trophiesTab), fetchTab(CONFIG.historyTab), fetchTab(CONFIG.highlightsTab)])
       .then(([troph, hist, hl])=>{
         if(troph.status==='fulfilled'){ trophyRows = parseTrophyRows(troph.value); trophyError = null; }
         else { trophyRows = []; trophyError = troph.reason.message || "Couldn't load Trophies."; }
@@ -927,8 +924,13 @@ footer{
         else { highlightRows = []; highlightError = hl.reason.message || "Couldn't load Highlights."; }
 
         historyLoaded = true;
-        renderHistory();
       });
+  }
+
+  function goHistory(){
+    if(historyLoaded){ renderHistory(); return; }
+    renderShell(`<div class="state-card"><h2>Loading history…</h2><p>Pulling past trips from the Sheet.</p></div>`);
+    loadHistoryTabs().then(renderHistory);
   }
 
   function renderHistory(){
@@ -1199,7 +1201,7 @@ footer{
       renderSetup();
       return;
     }
-    fetch(csvUrl(CONFIG.leaderboardTab))
+    const leaderboardPromise = fetch(csvUrl(CONFIG.leaderboardTab))
       .then(res=>{
         if(!res.ok) throw new Error("HTTP "+res.status);
         return res.text();
@@ -1210,6 +1212,15 @@ footer{
         }
         rows = parseRows(text);
         liveMode = true;
+      });
+
+    // Keep History/Trophies/Highlights fresh too, once they've been loaded at least
+    // once — otherwise "Refresh now" and the 60s auto-refresh only ever touch the
+    // Leaderboard tab and History silently goes stale for the rest of the session.
+    const historyPromise = historyLoaded ? loadHistoryTabs() : Promise.resolve();
+
+    Promise.all([leaderboardPromise, historyPromise])
+      .then(()=>{
         lastSync = new Date();
         if(view==='history') renderHistory(); else renderBoard();
       })
