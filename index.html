@@ -898,7 +898,7 @@ footer{
       par: (row['Par']||'').toString().trim(),
       achievement: (row['Achievement']||'').trim(),
       notes: (row['Notes']||'').trim(),
-    })).filter(r => r.year!=='' && r.player!=='' && !r.player.toLowerCase().startsWith('e.g.'));
+    })).filter(r => r.player!=='' && !r.player.toLowerCase().startsWith('e.g.'));
   }
 
   function fetchTab(tab){
@@ -1100,14 +1100,16 @@ footer{
     const fullHistLabel = selectedHistoryYear === 'all' ? 'Full History' : `Full History — ${escapeHtml(selectedHistoryYear)}`;
     const showHistToggle = selectedHistoryYear !== 'all';
 
-    const sortedHighlights = [...highlightRows].sort((a,b)=>b.year.localeCompare(a.year,undefined,{numeric:true}));
+    const sortedHighlights = [...highlightRows].sort((a,b)=>(b.year||'').localeCompare(a.year||'',undefined,{numeric:true}));
     const highlightItems = sortedHighlights.map(h=>{
       const badgeClass = h.achievement.toLowerCase().includes('hole-in-one') || h.achievement.toLowerCase().includes('ace') ? 'ace' : 'albatross';
+      const holeText = h.hole ? `Hole ${h.hole}` : '';
+      const metaLine = [holeText && h.par ? `${holeText} (Par ${h.par})` : holeText, [h.year, h.location].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
       return `
       <div class="highlight-item">
         <span class="highlight-badge ${badgeClass}">${escapeHtml(h.achievement || '—')}</span>
         <div class="highlight-body">
-          <div class="highlight-main"><strong>${escapeHtml(h.player)}</strong> — Hole ${escapeHtml(h.hole)}${h.par ? ` (Par ${escapeHtml(h.par)})` : ''} · ${escapeHtml(h.year)}${h.location ? `, ${escapeHtml(h.location)}` : ''}</div>
+          <div class="highlight-main"><strong>${escapeHtml(h.player)}</strong>${metaLine ? ` — ${escapeHtml(metaLine)}` : ''}</div>
           ${h.notes ? `<div class="highlight-notes">${escapeHtml(h.notes)}</div>` : ''}
         </div>
       </div>`;
