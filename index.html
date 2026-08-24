@@ -1122,9 +1122,12 @@ footer{
       ${trophyError ? `<p class="helper-text" style="margin:0 2px 12px;">Trophies tab didn't load — showing individual stats only. ${trophyError}</p>` : ''}
       <div class="hof-scroll">${hofCards}</div>
 
-      ${highlightItems ? `
       <div class="section-label">Top Shots</div>
-      <div class="table-card highlights-card">${highlightItems}</div>` : highlightError ? `<p class="helper-text" style="margin:-6px 2px 0;">Highlights tab didn't load. ${highlightError}</p>` : ''}
+      ${highlightError
+        ? `<p class="helper-text" style="margin:-6px 2px 12px;">Highlights tab didn't load. ${highlightError}</p>`
+        : highlightItems
+          ? `<div class="table-card highlights-card">${highlightItems}</div>`
+          : `<p class="helper-text" style="margin:-6px 2px 12px;">No hole-in-ones or albatrosses logged yet — add one to the Highlights tab the next time it happens.</p>`}
 
       ${recordsHtml ? `
       <div class="section-label">Best of the Trip</div>
