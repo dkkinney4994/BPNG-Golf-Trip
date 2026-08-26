@@ -1053,14 +1053,11 @@ footer{
   /* ---------------- Skins view ---------------- */
   // The Skins tab isn't a clean header-keyed table (it's settings + 4 hole-by-hole
   // grids + a summary, all stacked), so it's parsed as a raw positional grid instead
-  // of by column header. Row numbers below match the fixed layout: Pot per Round in
-  // B1, 16 summary rows starting at row 113 (Player, R1-4 Skins, Total Skins,
-  // R1-4 $, Total $).
-  const SKINS_SUMMARY_FIRST_ROW = 113; // 1-indexed spreadsheet row
-  const SKINS_SUMMARY_ROWS = 16;
-
-  function safeCell(grid, row1Indexed, col0Indexed){
-    const r = grid[row1Indexed - 1];
+  // of by column header. Row numbers aren't hardcoded — the parser searches for the
+  // "Pot per Round" label and the "Player" summary-header row by their text, so it
+  // still works no matter how many participant rows were kept, deleted, or added.
+  function safeCell(grid, row0Indexed, col0Indexed){
+    const r = grid[row0Indexed];
     if(!r) return '';
     const v = r[col0Indexed];
     return v===undefined ? '' : v;
@@ -1074,24 +1071,38 @@ footer{
     return isNaN(n) ? null : n;
   }
 
+  function findRowByLabel(grid, label){
+    for(let i=0;i<grid.length;i++){
+      const cell = String(safeCell(grid,i,0)||'').trim().toLowerCase();
+      if(cell.startsWith(label.toLowerCase())) return i;
+    }
+    return -1;
+  }
+
   function parseSkinsGrid(csvText){
     const parsed = Papa.parse(csvText.trim(), {skipEmptyLines:false});
     const grid = parsed.data;
-    const pot = moneyNum(safeCell(grid, 1, 1));
+
+    const potRow = findRowByLabel(grid, "Pot per Round");
+    const pot = potRow===-1 ? null : moneyNum(safeCell(grid, potRow, 1));
+
+    const headerRow = findRowByLabel(grid, "Player");
     const players = [];
-    for(let i=0;i<SKINS_SUMMARY_ROWS;i++){
-      const row1 = SKINS_SUMMARY_FIRST_ROW + i;
-      const name = String(safeCell(grid, row1, 0)||'').trim();
-      if(name==='' || name==='0'){ continue; } // blank settings cell exports as "0" via formula ref
-      players.push({
-        player: name,
-        r1: moneyNum(safeCell(grid,row1,1)), r2: moneyNum(safeCell(grid,row1,2)),
-        r3: moneyNum(safeCell(grid,row1,3)), r4: moneyNum(safeCell(grid,row1,4)),
-        totalSkins: moneyNum(safeCell(grid,row1,5)),
-        d1: moneyNum(safeCell(grid,row1,6)), d2: moneyNum(safeCell(grid,row1,7)),
-        d3: moneyNum(safeCell(grid,row1,8)), d4: moneyNum(safeCell(grid,row1,9)),
-        totalDollars: moneyNum(safeCell(grid,row1,10)),
-      });
+    if(headerRow !== -1){
+      for(let i=headerRow+1; i<grid.length; i++){
+        const name = String(safeCell(grid, i, 0)||'').trim();
+        if(name.toLowerCase()==='distinct winners'){ break; } // end of real participant rows
+        if(name==='' || name==='0'){ continue; } // blank settings cell exports as "0" via formula ref
+        players.push({
+          player: name,
+          r1: moneyNum(safeCell(grid,i,1)), r2: moneyNum(safeCell(grid,i,2)),
+          r3: moneyNum(safeCell(grid,i,3)), r4: moneyNum(safeCell(grid,i,4)),
+          totalSkins: moneyNum(safeCell(grid,i,5)),
+          d1: moneyNum(safeCell(grid,i,6)), d2: moneyNum(safeCell(grid,i,7)),
+          d3: moneyNum(safeCell(grid,i,8)), d4: moneyNum(safeCell(grid,i,9)),
+          totalDollars: moneyNum(safeCell(grid,i,10)),
+        });
+      }
     }
     return {pot, players};
   }
