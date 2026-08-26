@@ -27,7 +27,7 @@
    ============================================================ */
 const CONFIG = {
   tripName: "BPNG Golf Trip",
-  tripSubtitle: "Golf · Hockey · Beer · Fights",
+  tripSubtitle: "Golf \u00b7 Hockey \u00b7 Beer \u00b7 Fights",
   sheetId: "1KzPhtdF_2176HfWqjYPJDQj2ppDqvGJzF80tp-Bv2gI",
   leaderboardTab: "Leaderboard",
   historyTab: "History",
@@ -760,7 +760,7 @@ footer{
       <div class="masthead">
         <p class="eyebrow">${view==='board' ? 'Leaderboard' : 'Trip History'}</p>
         <h1 class="trip-title">${CONFIG.tripName}</h1>
-        <p class="trip-sub">16 players &middot; 4 rounds &middot; stroke play, gross &amp; net</p>
+        <p class="trip-sub">${CONFIG.tripSubtitle}</p>
         <div class="view-nav">
           <button id="nav-board" class="${view==='board'?'active':''}">This Trip</button>
           <span class="sep">/</span>
