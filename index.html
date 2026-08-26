@@ -34,6 +34,7 @@ const CONFIG = {
   trophiesTab: "Trophies",
   highlightsTab: "Highlights",
   teeTimesTab: "Tee Times",
+  skinsTab: "Skins",
   refreshSeconds: 60
 };
 </script>
@@ -734,7 +735,7 @@ footer{
   }
 
   let mode = "net";   // 'net' | 'gross'
-  let view = "board"; // 'board' | 'history'
+  let view = "board"; // 'board' | 'history' | 'skins'
   let selectedHistoryYear = null; // null = not yet set; 'all' or a specific year string
   let historySubView = 'achievements'; // 'achievements' | 'scores'
   let rows = [];
@@ -747,6 +748,9 @@ footer{
   let highlightRows = [];
   let highlightError = null;
   let historyLoaded = false;
+  let skinsPot = null;
+  let skinsRows = [];
+  let skinsError = null;
   let lastSync = null;
   let liveMode = false;
 
@@ -756,9 +760,10 @@ footer{
 
   function renderShell(inner){
     const showModeToggle = liveMode && view === 'board';
+    const eyebrowText = view==='board' ? 'Leaderboard' : 'Trip History';
     app.innerHTML = `
       <div class="masthead">
-        <p class="eyebrow">${view==='board' ? 'Leaderboard' : 'Trip History'}</p>
+        <p class="eyebrow">${eyebrowText}</p>
         <h1 class="trip-title">${CONFIG.tripName}</h1>
         <p class="trip-sub">${CONFIG.tripSubtitle}</p>
         <div class="view-nav">
@@ -771,6 +776,7 @@ footer{
           <div class="toggle">
             <button id="btn-net" class="${mode==='net'?'active':''}">Net</button>
             <button id="btn-gross" class="${mode==='gross'?'active':''}">Gross</button>
+            <button id="btn-skins" class="${mode==='skins'?'active':''}">Skins</button>
           </div>` : ``}
           <button class="refresh-btn" id="btn-refresh">Refresh now</button>
           <div class="sync-status">
@@ -790,6 +796,7 @@ footer{
     if(showModeToggle){
       document.getElementById('btn-net').onclick = () => { mode='net'; renderBoard(); };
       document.getElementById('btn-gross').onclick = () => { mode='gross'; renderBoard(); };
+      document.getElementById('btn-skins').onclick = () => { mode='skins'; renderBoard(); };
     }
     document.getElementById('btn-refresh').onclick = () => load(true);
   }
@@ -950,8 +957,7 @@ footer{
         </div>`;
     }).join('');
 
-    renderShell(`
-      ${teeTimesHtml}
+    const leaderboardHtml = `
       <div class="board">
         <div class="board-head">
           <span>Rk</span><span>Player</span>
@@ -959,7 +965,11 @@ footer{
           <span>Total</span>
         </div>
         ${rowsHtml || '<div class="state-card"><h2>No scores yet</h2><p>Once gross scores are entered in the Sheet, players will appear here.</p></div>'}
-      </div>
+      </div>`;
+
+    renderShell(`
+      ${teeTimesHtml}
+      ${mode==='skins' ? skinsSectionHtml() : leaderboardHtml}
     `);
   }
 
@@ -1038,6 +1048,103 @@ footer{
     if(historyLoaded){ renderHistory(); return; }
     renderShell(`<div class="state-card"><h2>Loading history…</h2><p>Pulling past trips from the Sheet.</p></div>`);
     loadHistoryTabs().then(renderHistory);
+  }
+
+  /* ---------------- Skins view ---------------- */
+  // The Skins tab isn't a clean header-keyed table (it's settings + 4 hole-by-hole
+  // grids + a summary, all stacked), so it's parsed as a raw positional grid instead
+  // of by column header. Row numbers below match the fixed layout: Pot per Round in
+  // B1, 16 summary rows starting at row 113 (Player, R1-4 Skins, Total Skins,
+  // R1-4 $, Total $).
+  const SKINS_SUMMARY_FIRST_ROW = 113; // 1-indexed spreadsheet row
+  const SKINS_SUMMARY_ROWS = 16;
+
+  function safeCell(grid, row1Indexed, col0Indexed){
+    const r = grid[row1Indexed - 1];
+    if(!r) return '';
+    const v = r[col0Indexed];
+    return v===undefined ? '' : v;
+  }
+
+  function moneyNum(v){
+    if(v===undefined||v===null) return null;
+    const t = String(v).replace(/[$,]/g,'').trim();
+    if(t==='') return null;
+    const n = Number(t);
+    return isNaN(n) ? null : n;
+  }
+
+  function parseSkinsGrid(csvText){
+    const parsed = Papa.parse(csvText.trim(), {skipEmptyLines:false});
+    const grid = parsed.data;
+    const pot = moneyNum(safeCell(grid, 1, 1));
+    const players = [];
+    for(let i=0;i<SKINS_SUMMARY_ROWS;i++){
+      const row1 = SKINS_SUMMARY_FIRST_ROW + i;
+      const name = String(safeCell(grid, row1, 0)||'').trim();
+      if(name==='' || name==='0'){ continue; } // blank settings cell exports as "0" via formula ref
+      players.push({
+        player: name,
+        r1: moneyNum(safeCell(grid,row1,1)), r2: moneyNum(safeCell(grid,row1,2)),
+        r3: moneyNum(safeCell(grid,row1,3)), r4: moneyNum(safeCell(grid,row1,4)),
+        totalSkins: moneyNum(safeCell(grid,row1,5)),
+        d1: moneyNum(safeCell(grid,row1,6)), d2: moneyNum(safeCell(grid,row1,7)),
+        d3: moneyNum(safeCell(grid,row1,8)), d4: moneyNum(safeCell(grid,row1,9)),
+        totalDollars: moneyNum(safeCell(grid,row1,10)),
+      });
+    }
+    return {pot, players};
+  }
+
+  function skinsSectionHtml(){
+    if(skinsError){
+      return `<div class="state-card">
+        <h2>Couldn't load skins</h2>
+        <p>${skinsError}</p>
+        <ol>
+          <li>Confirm a tab named exactly <code>${CONFIG.skinsTab}</code> exists in the Sheet.</li>
+          <li>Confirm the Sheet is still shared as <b>Anyone with the link → Viewer</b>.</li>
+        </ol>
+      </div>`;
+    }
+    if(skinsRows.length === 0){
+      return `<div class="state-card">
+        <h2>No skins participants yet</h2>
+        <p>Add names to the Participants list on the Skins tab and this fills in on its own.</p>
+      </div>`;
+    }
+    const hasAnyData = skinsRows.some(p => (p.totalSkins||0) > 0);
+    const sorted = [...skinsRows].sort((a,b)=> (b.totalDollars||0)-(a.totalDollars||0) || (b.totalSkins||0)-(a.totalSkins||0) || a.player.localeCompare(b.player));
+    const fmtMoney = v => v===null ? '–' : `$${v.toFixed(2)}`;
+    const fmtNum = v => v===null ? '–' : v;
+
+    const rowsHtml = sorted.map(p=>`
+      <tr>
+        <td class="cell-text">${escapeHtml(p.player)}</td>
+        <td>${fmtNum(p.r1)}</td><td>${fmtNum(p.r2)}</td><td>${fmtNum(p.r3)}</td><td>${fmtNum(p.r4)}</td>
+        <td>${fmtNum(p.totalSkins)}</td>
+        <td>${fmtMoney(p.totalDollars)}</td>
+      </tr>`).join('');
+
+    return `
+      <div class="records-grid" style="grid-template-columns:1fr;">
+        <div class="record-box">
+          <div class="record-label">Pot per Round</div>
+          <div class="record-value">${skinsPot!==null ? `$${skinsPot}` : '–'}</div>
+          <div class="record-who">Split evenly among however many different players win a skin that round</div>
+        </div>
+      </div>
+
+      <div class="section-label">Skins Standings</div>
+      ${!hasAnyData ? `<p class="helper-text" style="margin:-6px 2px 12px;">No skins won yet — scores are still coming in, or the round hasn't started.</p>` : ''}
+      <div class="table-card table-scroll">
+        <table class="hist-table">
+          <colgroup><col style="width:28%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:14%"><col style="width:18%"></colgroup>
+          <thead><tr><th class="cell-text">Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Skins</th><th>Total $</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
   }
 
   function renderHistory(){
@@ -1338,15 +1445,22 @@ footer{
       .then(text=>{ teeTimeRows = parseTeeTimeRows(text); teeTimeError = null; })
       .catch(err=>{ teeTimeRows = []; teeTimeError = err.message || "Couldn't load Tee Times."; });
 
+    // Skins is a toggle on the homepage now (not a separate page), so it loads eagerly
+    // every cycle alongside the leaderboard rather than waiting for a first click.
+    const skinsPromise = fetchTab(CONFIG.skinsTab)
+      .then(text=>{ const {pot, players} = parseSkinsGrid(text); skinsPot = pot; skinsRows = players; skinsError = null; })
+      .catch(err=>{ skinsPot = null; skinsRows = []; skinsError = err.message || "Couldn't load Skins."; });
+
     // Keep History/Trophies/Highlights fresh too, once they've been loaded at least
     // once — otherwise "Refresh now" and the 60s auto-refresh only ever touch the
     // Leaderboard tab and History silently goes stale for the rest of the session.
     const historyPromise = historyLoaded ? loadHistoryTabs() : Promise.resolve();
 
-    Promise.all([leaderboardPromise, teeTimesPromise, historyPromise])
+    Promise.all([leaderboardPromise, teeTimesPromise, historyPromise, skinsPromise])
       .then(()=>{
         lastSync = new Date();
-        if(view==='history') renderHistory(); else renderBoard();
+        if(view==='history') renderHistory();
+        else renderBoard();
       })
       .catch(err=>{
         renderError(err.message || "Something went wrong fetching the Sheet.");
