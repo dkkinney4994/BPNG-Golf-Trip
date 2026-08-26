@@ -897,8 +897,8 @@ footer{
           const course = groups.find(g=>g.course)?.course || '';
           return `
           <div class="tee-card">
-            <div class="tee-round">Round ${escapeHtml(rnd)}</div>
-            ${course ? `<div class="tee-course">${escapeHtml(course)}</div>` : ''}
+            <div class="tee-round">${course ? escapeHtml(course) : `Round ${escapeHtml(rnd)}`}</div>
+            ${course ? `<div class="tee-course">Round ${escapeHtml(rnd)}</div>` : ''}
             <div class="tee-groups">
               ${groups.map(g=>`
                 <div class="tee-group">
