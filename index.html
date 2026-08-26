@@ -32,6 +32,7 @@ const CONFIG = {
   historyTab: "History",
   trophiesTab: "Trophies",
   highlightsTab: "Highlights",
+  teeTimesTab: "Tee Times",
   refreshSeconds: 60
 };
 </script>
@@ -498,6 +499,52 @@ body{
   color:var(--ink-dim);
 }
 
+.tee-card{
+  flex:0 0 auto;
+  width:236px;
+  background:linear-gradient(160deg, var(--card-2) 0%, var(--card) 100%);
+  border:1px solid var(--line);
+  border-top:2px solid var(--maroon-light);
+  border-radius:var(--radius);
+  padding:15px 16px 14px;
+}
+.tee-round{
+  font-family:'Oswald',sans-serif;
+  font-weight:700;
+  font-size:19px;
+  text-transform:uppercase;
+  letter-spacing:.01em;
+  color:var(--ink);
+}
+.tee-course{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  color:var(--ink-dimmer);
+  margin-top:3px;
+}
+.tee-groups{
+  margin-top:11px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+}
+.tee-group{
+  margin-bottom:9px;
+}
+.tee-group:last-child{margin-bottom:0;}
+.tee-time{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:700;
+  font-size:11.5px;
+  color:var(--gold);
+}
+.tee-players{
+  font-family:'Inter',sans-serif;
+  font-size:12.5px;
+  color:var(--ink);
+  margin-top:2px;
+  line-height:1.35;
+}
+
 .scores-header{
   display:flex;
   flex-wrap:wrap;
@@ -677,6 +724,8 @@ footer{
   let selectedHistoryYear = null; // null = not yet set; 'all' or a specific year string
   let historySubView = 'achievements'; // 'achievements' | 'scores'
   let rows = [];
+  let teeTimeRows = [];
+  let teeTimeError = null;
   let historyRows = [];
   let historyError = null;
   let trophyRows = [];
@@ -814,10 +863,53 @@ footer{
     return out;
   }
 
+  function parseTimeToMinutes(t){
+    const m = t.match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm])?/);
+    if(!m) return null;
+    let h = parseInt(m[1],10);
+    const min = parseInt(m[2],10);
+    const ampm = (m[3]||'').toUpperCase();
+    if(ampm==='PM' && h!==12) h+=12;
+    if(ampm==='AM' && h===12) h=0;
+    return h*60+min;
+  }
+
   function renderBoard(){
     const totalKey = mode==='net' ? 'totalNet' : 'totalGross';
     const roundKeys = mode==='net' ? ['r1n','r2n','r3n','r4n'] : ['r1g','r2g','r3g','r4g'];
     const ranked = computeRanked(rows, totalKey);
+
+    const teeTimesByRound = {};
+    teeTimeRows.forEach(t=>{
+      if(!teeTimesByRound[t.round]) teeTimesByRound[t.round] = [];
+      teeTimesByRound[t.round].push(t);
+    });
+    const roundOrder = Object.keys(teeTimesByRound).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    const teeTimesHtml = roundOrder.length ? `
+      <div class="section-label" style="margin-top:8px;">Tee Times</div>
+      <div class="hof-scroll">
+        ${roundOrder.map(rnd=>{
+          const groups = [...teeTimesByRound[rnd]].sort((a,b)=>{
+            const ma = parseTimeToMinutes(a.time), mb = parseTimeToMinutes(b.time);
+            if(ma===null || mb===null) return a.time.localeCompare(b.time);
+            return ma-mb;
+          });
+          const course = groups.find(g=>g.course)?.course || '';
+          return `
+          <div class="tee-card">
+            <div class="tee-round">Round ${escapeHtml(rnd)}</div>
+            ${course ? `<div class="tee-course">${escapeHtml(course)}</div>` : ''}
+            <div class="tee-groups">
+              ${groups.map(g=>`
+                <div class="tee-group">
+                  <div class="tee-time">${escapeHtml(g.time || '—')}</div>
+                  <div class="tee-players">${escapeHtml(g.players)}</div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    ` : teeTimeError ? `<p class="helper-text" style="margin:8px 2px 0;">Tee Times tab didn't load. ${teeTimeError}</p>` : '';
 
     const rowsHtml = ranked.map(r=>{
       const rc = r._rank===1?'rank-1':r._rank===2?'rank-2':r._rank===3?'rank-3':'';
@@ -845,6 +937,7 @@ footer{
     }).join('');
 
     renderShell(`
+      ${teeTimesHtml}
       <div class="board">
         <div class="board-head">
           <span>Rk</span><span>Player</span>
@@ -1198,6 +1291,16 @@ footer{
     })).filter(r=>r.player!=='');
   }
 
+  function parseTeeTimeRows(csvText){
+    const parsed = Papa.parse(csvText.trim(), {header:true, skipEmptyLines:true});
+    return parsed.data.map(row => ({
+      round: (row['Round']||'').toString().trim(),
+      course: (row['Course']||'').trim(),
+      time: (row['Time']||'').trim(),
+      players: (row['Players']||'').trim(),
+    })).filter(r => r.round!=='' && !r.course.toLowerCase().startsWith('e.g.'));
+  }
+
   function load(manual){
     if(!CONFIG.sheetId || CONFIG.sheetId.trim()===''){
       renderSetup();
@@ -1216,12 +1319,16 @@ footer{
         liveMode = true;
       });
 
+    const teeTimesPromise = fetchTab(CONFIG.teeTimesTab)
+      .then(text=>{ teeTimeRows = parseTeeTimeRows(text); teeTimeError = null; })
+      .catch(err=>{ teeTimeRows = []; teeTimeError = err.message || "Couldn't load Tee Times."; });
+
     // Keep History/Trophies/Highlights fresh too, once they've been loaded at least
     // once — otherwise "Refresh now" and the 60s auto-refresh only ever touch the
     // Leaderboard tab and History silently goes stale for the rest of the session.
     const historyPromise = historyLoaded ? loadHistoryTabs() : Promise.resolve();
 
-    Promise.all([leaderboardPromise, historyPromise])
+    Promise.all([leaderboardPromise, teeTimesPromise, historyPromise])
       .then(()=>{
         lastSync = new Date();
         if(view==='history') renderHistory(); else renderBoard();
