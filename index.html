@@ -252,6 +252,19 @@ body{
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.hcp-tag{
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:600;
+  font-size:9.5px;
+  letter-spacing:.03em;
+  color:var(--ink-dim);
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:1px 5px;
+  margin-left:2px;
+  vertical-align:middle;
+}
 .thru{
   font-family:'IBM Plex Mono',monospace;
   font-size:10px;
@@ -928,7 +941,7 @@ footer{
         <div class="row ${rc}">
           <div class="rank">${rankLabel}</div>
           <div class="player-cell">
-            <div class="player-name">${escapeHtml(r.player)}</div>
+            <div class="player-name">${escapeHtml(r.player)}${r.handicap ? ` <span class="hcp-tag">HCP ${escapeHtml(r.handicap)}</span>` : ''}</div>
             <div class="thru">${r.roundsPlayed}/4 rounds</div>
           </div>
           ${holes}
@@ -1283,6 +1296,7 @@ footer{
     const parsed = Papa.parse(csvText.trim(), {header:true, skipEmptyLines:true});
     return parsed.data.map(row => ({
       player: (row['Player']||'').trim(),
+      handicap: (row['Handicap']||'').toString().trim(),
       roundsPlayed: num(row['Rounds Played']) ?? 0,
       r1n:num(row['R1 Net']), r2n:num(row['R2 Net']), r3n:num(row['R3 Net']), r4n:num(row['R4 Net']),
       totalNet: num(row['Total Net']),
