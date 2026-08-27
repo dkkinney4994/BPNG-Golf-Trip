@@ -1127,13 +1127,14 @@ footer{
     const hasAnyData = skinsRows.some(p => (p.totalSkins||0) > 0);
     const sorted = [...skinsRows].sort((a,b)=> (b.totalDollars||0)-(a.totalDollars||0) || (b.totalSkins||0)-(a.totalSkins||0) || a.player.localeCompare(b.player));
     const fmtMoney = v => v===null ? '–' : `$${v.toFixed(2)}`;
-    const fmtNum = v => v===null ? '–' : v;
 
     const rowsHtml = sorted.map(p=>`
       <tr>
-        <td class="cell-text">${escapeHtml(p.player)}</td>
-        <td>${fmtNum(p.r1)}</td><td>${fmtNum(p.r2)}</td><td>${fmtNum(p.r3)}</td><td>${fmtNum(p.r4)}</td>
-        <td>${fmtNum(p.totalSkins)}</td>
+        <td class="cell-text">
+          ${escapeHtml(p.player)}
+          <div class="helper-text" style="margin-top:1px;">${p.totalSkins ?? 0} skin${p.totalSkins===1?'':'s'} total</div>
+        </td>
+        <td>${fmtMoney(p.d1)}</td><td>${fmtMoney(p.d2)}</td><td>${fmtMoney(p.d3)}</td><td>${fmtMoney(p.d4)}</td>
         <td>${fmtMoney(p.totalDollars)}</td>
       </tr>`).join('');
 
@@ -1146,12 +1147,12 @@ footer{
         </div>
       </div>
 
-      <div class="section-label">Skins Standings</div>
+      <div class="section-label">Skins Payouts by Round</div>
       ${!hasAnyData ? `<p class="helper-text" style="margin:-6px 2px 12px;">No skins won yet — scores are still coming in, or the round hasn't started.</p>` : ''}
       <div class="table-card table-scroll">
         <table class="hist-table">
-          <colgroup><col style="width:28%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:14%"><col style="width:18%"></colgroup>
-          <thead><tr><th class="cell-text">Player</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Skins</th><th>Total $</th></tr></thead>
+          <colgroup><col style="width:30%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+          <thead><tr><th class="cell-text">Player</th><th>R1 $</th><th>R2 $</th><th>R3 $</th><th>R4 $</th><th>Total $</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>
